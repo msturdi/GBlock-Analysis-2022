@@ -1,0 +1,100 @@
+data gBlock;
+input week trt$ typ$ rep primer$ CT;
+cards;
+
+*Data*
+
+;
+proc glm;
+	where typ in ('Pos','Spike');
+	class week trt typ rep primer;
+	model CT = week trt typ rep primer week*typ week*trt / alpha=0.05;
+	means typ trt rep primer week/ cldiff tukey alpha=.05 lines;
+	lsmeans typ trt rep primer week week*typ week*trt / pdiff adjust=tukey
+		lines;
+	lsmeans week*typ / slice=typ;
+	lsmeans week*trt / slice=trt slice=week;
+
+data primerattrmap;
+	retain ID "myid";
+	input value $ fillcolor $ linecolor $;
+	datalines;
+	CATA CX821923 CX821923
+	CSP CX2166AC CX2166AC
+	;
+	run;
+	
+proc sgplot data=gblock dattrmap=primerattrmap;
+	where typ in ('Pos','Spike');
+	vbox CT / category=typ group=primer attrid=myid 
+		whiskerattrs=(color=black) meanattrs=(color=black)
+		medianattrs=(color=black) outlierattrs=(color=black)
+		dataskin=crisp;
+	keylegend / autoitemsize fillaspect=golden location=outside
+		position=bottom title="Primers";
+	xaxis display=(nolabel);
+	yaxis label="CT";
+	title 'CT Consistency Across Sample Types';
+	
+
+data trtattrmap;
+	retain ID "myid";
+	input value $ fillcolor $ linecolor $;
+	datalines;
+	1 CX7B3294 CX7B3294
+	2 CXC2A5CF CXC2A5CF
+	3 CXA6DBA0 CXA6DBA0
+	4 CX008837 CX008837
+	;
+	run;
+	
+proc sgplot data=gblock dattrmap=trtattrmap;
+	where typ in ('Pos','Spike');
+	vbox CT / category=typ group=trt attrid=myid whiskerattrs=(color=black) 
+		meanattrs=(color=black) medianattrs=(color=black) 
+		outlierattrs=(color=black) dataskin=crisp;
+	xaxis label="Sample Type";
+	keylegend / autoitemsize fillaspect=golden location=inside
+		position=topright title="Temp Treatment";
+	title 'CT Consistency Over Varying Temperatures';
+	title2 'Regardless of Primer';
+proc sgplot data=gblock dattrmap=primerattrmap;
+	where typ in ('Pos','Spike');
+	vbar primer / response=CT group=primer stat=mean datalabel 
+		attrid=myid dataskin=crisp;
+	xaxis display=none;
+	keylegend / autoitemsize fillaspect=golden location=outside
+		position=bottom title="" noborder;
+	title 'Average CT Comparison';
+	
+data typattrmap;
+	retain ID "myid";
+	input value $ fillcolor $ linecolor $;
+	datalines;
+	Pos CX31A354 CX31A354
+	Neg CX327396 CX327396
+	Spike CXFC8D62 CXFC8D62
+	;
+	run;
+	
+proc sgpanel data=gBlock dattrmap=typattrmap;
+	where typ in ('Pos','Spike');
+	panelby typ trt / layout=lattice onepanel;
+	vbar week / response=CT group=typ stat=mean barwidth=0.6 attrid=myid 
+		grouporder=data statlabel dataskin=crisp;
+	colaxis discreteorder=data label="Week";
+	title 'CT Consistency Over Temperature & Time';
+	keylegend / position=right autoitemsize fillaspect=golden
+		title="Sample Type" noborder;
+proc sgplot data=gblock dattrmap=typattrmap;
+	vbar week / response=CT group=typ stat=mean groupdisplay=cluster
+		attrid=myid dataskin=crisp barwidth=0.7 limitstat=clm 
+		limitattrs=(color=black);
+	title "CT Consistency Across Replicate Experiments";
+	keylegend / autoitemsize fillaspect=golden title="Sample Type"
+		position=bottom location=outside;
+	xaxis label="Week";
+	yaxis ranges=(0-26 38-40) integer label="Average CT Value";
+proc univariate data=gblock normal;
+	var CT;
+run;
